@@ -1,0 +1,13 @@
+#EXTM3U
+#EXTINF:-1 tvg-name="National Geographic (Mexico) HD" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/National_Geographic_logo.svg/1280px-National_Geographic_logo.svg.png" group-title="纪录", National Geographic (Mexico) HD
+http://138.121.15.230:9002/NAT-GEO/index.m3u8
+#EXTINF:-1 tvg-name="National Geographic (US East) HD" group-title="纪录", National Geographic (US East) HD
+http://198.58.104.90:8989/natgeo/index.m3u8
+#EXTINF:-1 tvg-name="National Geographic (Russia) HD" group-title="纪录", National Geographic (Russia) HD
+http://str2.iptvhd.ru:8080/National_Geo_HD/index.m3u8
+#EXTINF:-1 tvg-name="National Geographic Wild (US East) HD" group-title="纪录", National Geographic Wild (US East) HD
+http://198.58.104.90:8989/natgeowild/index.m3u8
+#EXTINF:-1 tvg-name="National Geographic Wild (Russia) HD" group-title="纪录", National Geographic Wild (Russia) HD
+http://str2.iptvhd.ru:8080/Nat_Geo_Wild_HD/index.m3u8
+#EXTINF:-1 tvg-name="BBC Earth (US) HD" group-title="纪录", BBC Earth (US) HD
+https://amg00793-amg00793c6-xumo-us-2669.playouts.now.amagi.tv/BBCStudios-BBCEarthA-hls/playlist.m3u8

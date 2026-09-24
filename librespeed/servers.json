@@ -1,0 +1,13 @@
+[
+  {
+    "name": "本地主機 (LAN/Tailscale)",
+    "server": "/speedtest/backend",
+    "dlURL": "garbage.php",
+    "ulURL": "empty.php",
+    "pingURL": "empty.php",
+    "getIpURL": "getIP.php",
+    "sponsorName": "",
+    "sponsorURL": "",
+    "id": 1
+  }
+]

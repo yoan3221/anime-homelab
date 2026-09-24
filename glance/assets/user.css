@@ -1,0 +1,275 @@
+/* ============================================================
+   Glance 美化 · Catppuccin Mocha + 毛玻璃 (user.css)
+   掛載: ./glance/assets -> /app/assets:ro
+   注意: 改完檔案瀏覽器要 Ctrl+F5 硬刷新
+   ============================================================ */
+
+/* ---- 半透明主題色(讓背景圖透出來) ---- */
+:root {
+  --color-background: rgba(30, 30, 46, 0.35) !important;
+  --color-widget-background: var(--widget-bg, rgba(30, 30, 46, 0.55)) !important;
+  --color-widget-background-hsl-values: 240, 21%, 15% !important;
+}
+
+html { height: 100%; }
+
+body {
+  background-color: #1e1e2e;
+  background-image: url("/bg/current.jpg");
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+}
+
+/* 深色遮罩，讓文字在任何背景圖上都清楚 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--bg-tint, rgba(30, 30, 46, 0.38));
+  z-index: 0;
+  pointer-events: none;
+}
+
+#page { position: relative; z-index: 1; }
+
+/* ---- 背景圖淡入淡出層 ---- */
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 1.6s ease;
+  pointer-events: none;
+}
+.bg-layer.show { opacity: 1; }
+
+/* ---- 毛玻璃卡片 ---- */
+.widget-content:not(.widget-content-frameless),
+.widget-content-frame {
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+}
+
+/* ---- 卡片圓角 / 陰影 / hover 上浮 ---- */
+.widget {
+  border-radius: 14px !important;
+  border: 1px solid rgba(205, 214, 244, 0.07);
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.25s ease,
+              background-color 0.3s ease, color 0.2s ease;
+}
+
+.widget:hover {
+  transform: translateY(-2px);
+  border-color: rgba(137, 180, 250, 0.28);
+  box-shadow: 0 10px 18px -4px rgba(0, 0, 0, 0.35), 0 4px 8px -4px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- 進場淡入(backwards: 播完不殘留，hover 上浮才有效) ---- */
+@keyframes glanceFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.widget { animation: glanceFadeIn 0.35s ease-out backwards; }
+
+/* ---- 標題裝飾條 ---- */
+.widget-header {
+  letter-spacing: 0.02em;
+  position: relative;
+  padding-left: 12px;
+}
+.widget-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  opacity: 0.9;
+}
+
+/* ---- 時鐘 ---- */
+.widget-type-clock { text-align: center; }
+.widget-type-clock .time {
+  font-size: 3.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-shadow: 0 0 26px rgba(137, 180, 250, 0.35);
+}
+
+/* ---- 網速 ---- */
+.speed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.speed-item {
+  background: rgba(205, 214, 244, 0.06);
+  border: 1px solid rgba(205, 214, 244, 0.07);
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.speed-head {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 0.72rem; opacity: 0.7;
+}
+.speed-arrow { font-weight: 700; }
+.speed-down { color: var(--color-primary); }
+.speed-up { color: var(--color-positive); }
+.speed-value { font-size: 1.3rem; font-weight: 700; margin-top: 2px; }
+.speed-unit { font-size: 0.68rem; font-weight: 400; opacity: 0.6; margin-left: 2px; }
+.speed-sub { font-size: 0.68rem; opacity: 0.5; margin-top: 2px; }
+
+/* ---- 繼續觀看(海報牆) ---- */
+.jf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 120px);
+  justify-content: center;
+  gap: 14px;
+}
+.jf-card { display: block; text-decoration: none; transition: transform 0.2s ease; }
+.jf-card:hover { transform: translateY(-3px); }
+.jf-poster {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  background: rgba(205, 214, 244, 0.06);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+.jf-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jf-bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 4px; background: rgba(0, 0, 0, 0.55);
+}
+.jf-bar-fill { height: 100%; background: linear-gradient(90deg, var(--color-primary), var(--accent-2, #cba6f7)); }
+.jf-name { margin-top: 6px; font-size: 0.8rem; }
+.jf-sub { font-size: 0.7rem; opacity: 0.6; }
+.jf-empty { opacity: 0.6; text-align: center; padding: 12px 0; }
+
+/* ---- 下載中心 ---- */
+.dl-state {
+  font-size: 0.68rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(137, 180, 250, 0.15);
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+/* ---- 其他細節 ---- */
+.widget-type-rss a:hover { color: var(--color-primary); }
+
+.widget-type-bookmarks a {
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.widget-type-bookmarks a:hover { transform: translateX(4px); }
+
+.widget-type-iframe iframe {
+  border-radius: 10px;
+  border: 1px solid rgba(205, 214, 244, 0.1);
+}
+
+/* ---- Minecraft 伺服器狀態 ---- */
+.mc-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.mc-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.mc-on { background: #a6e3a1; box-shadow: 0 0 6px rgba(166, 227, 161, 0.7); }
+.mc-off { background: #f38ba8; }
+.mc-state { font-weight: 700; font-size: 0.85rem; }
+.mc-state-on { color: var(--color-positive); }
+.mc-state-off { color: var(--color-negative); }
+.mc-name { margin-left: auto; font-size: 0.7rem; opacity: 0.5; max-width: 45%; }
+.mc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mc-metric {
+  background: rgba(205, 214, 244, 0.06);
+  border: 1px solid rgba(205, 214, 244, 0.07);
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+}
+.mc-label { font-size: 0.7rem; opacity: 0.7; }
+.mc-value { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+.mc-unit { font-size: 0.68rem; font-weight: 400; opacity: 0.6; }
+
+/* ---- 天氣 ---- */
+.wx-hero, .wx-hours { max-width: 620px; margin-left: auto; margin-right: auto; }
+.wx-hero { text-align: center; padding: 2px 0 12px; }
+.wx-loc { font-size: 0.85rem; opacity: 0.75; }
+.wx-temp { font-size: 3.4rem; font-weight: 200; line-height: 1.05; letter-spacing: -0.03em; }
+.wx-cond { font-size: 0.95rem; margin-top: 2px; }
+.wx-hl { font-size: 0.8rem; opacity: 0.6; margin-top: 2px; }
+.wx-hours {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  border-top: 1px solid rgba(205, 214, 244, 0.08);
+  padding-top: 10px;
+}
+.wx-hour { text-align: center; }
+.wx-h-time { font-size: 0.7rem; opacity: 0.6; }
+.wx-h-icon { font-size: 1.15rem; margin: 3px 0; }
+.wx-h-temp { font-size: 0.85rem; font-weight: 700; }
+
+/* ---- 主機狀態 ---- */
+.hs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hs-item {
+  background: rgba(205, 214, 244, 0.06);
+  border: 1px solid rgba(205, 214, 244, 0.07);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.hs-label { font-size: 0.7rem; opacity: 0.7; }
+.hs-value { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+.hs-unit { font-size: 0.68rem; font-weight: 400; opacity: 0.6; }
+.hs-bar { height: 4px; border-radius: 999px; background: rgba(205, 214, 244, 0.12); margin-top: 5px; overflow: hidden; }
+.hs-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--color-primary), var(--accent-2, #cba6f7)); }
+.hs-sub { font-size: 0.65rem; opacity: 0.5; margin-top: 3px; }
+.hs-uptime { font-size: 0.7rem; opacity: 0.55; text-align: center; margin-top: 8px; }
+
+/* ---- 媒體庫 ---- */
+.lib-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.lib-item {
+  text-align: center;
+  background: rgba(205, 214, 244, 0.05);
+  border: 1px solid rgba(205, 214, 244, 0.06);
+  border-radius: 10px;
+  padding: 10px 6px;
+}
+.lib-value { font-size: 1.3rem; font-weight: 700; }
+.lib-label { font-size: 0.7rem; opacity: 0.65; margin-top: 2px; }
+
+/* ---- 自動更新閃爍(每 5 秒刷新時，數字輕微呼吸一下) ---- */
+@keyframes valueFlash {
+  0%   { opacity: 0.45; }
+  100% { opacity: 1; }
+}
+.refreshed .speed-value,
+.refreshed .text-very-compact,
+.refreshed .dl-state,
+.refreshed .mc-value { animation: valueFlash 0.9s ease-out; }
+
+/* ---- 捲軸 ---- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(205, 214, 244, 0.18);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(205, 214, 244, 0.32); }
+
+/* ---- 手機 ---- */
+@media (max-width: 768px) {
+  .widget { border-radius: 10px !important; }
+  .widget:hover { transform: none; }
+  .widget-type-clock .time { font-size: 2.4rem; }
+  .jf-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+}

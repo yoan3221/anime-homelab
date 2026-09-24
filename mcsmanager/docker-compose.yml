@@ -1,0 +1,22 @@
+services:
+  web:
+    image: githubyumao/mcsmanager-web:latest
+    restart: unless-stopped
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /home/g8kz/mcsmanager/web/data:/opt/mcsmanager/web/data
+      - /home/g8kz/mcsmanager/web/logs:/opt/mcsmanager/web/logs
+      - /home/g8kz/mcsmanager/web/public/upload_files:/opt/mcsmanager/web/public/upload_files
+
+  daemon:
+    image: githubyumao/mcsmanager-daemon:latest
+    restart: unless-stopped
+    environment:
+      - MCSM_DOCKER_WORKSPACE_PATH=/home/g8kz/mcsmanager/daemon/data/InstanceData
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /home/g8kz/mcsmanager/daemon/data:/opt/mcsmanager/daemon/data
+      - /home/g8kz/mcsmanager/daemon/logs:/opt/mcsmanager/daemon/logs
+      - /var/run/docker.sock:/var/run/docker.sock

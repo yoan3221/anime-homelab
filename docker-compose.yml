@@ -1,0 +1,181 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.11
+    container_name: jellyfin
+    user: "1000:1000"
+    group_add:
+      - "991"
+      - "44"
+    devices:
+      - "/dev/dri:/dev/dri"
+    environment:
+      - TZ=Asia/Shanghai
+      - JELLYFIN_PublishedServerUrl=auto
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - ./downloads:/media
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+          cpus: "2.5"
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      - UMASK_SET=022
+      - WEBUI_PORT=8080
+    ports:
+      # WebUI 已改走 nginx /qb，不再對外開 18080
+      - "6881:6881"   # BT 监听 (BT 必須直連，無法反代)
+      - "6881:6881/udp"
+    volumes:
+      - ./qbittorrent/config:/config
+      - ./downloads:/downloads
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2.0"
+
+  i2pd:
+    image: purplei2p/i2pd:latest
+    container_name: i2pd
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./i2pd/data:/home/i2pd
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "1.0"
+
+  ani-rss:
+    image: wushuo894/ani-rss:latest
+    container_name: ani-rss
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=022
+      - PORT=7789
+      - CONFIG=/config
+      - TZ=Asia/Shanghai
+      - JAVA_OPTS=-Xms64m -Xmx512m
+    volumes:
+      - ./ani-rss/config:/config
+      - ./downloads:/downloads
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+
+  glance:
+    image: glanceapp/glance:latest
+    container_name: glance
+    env_file:
+      - .env
+    volumes:
+      - ./glance/config:/app/config
+      - ./glance/assets:/app/assets:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  glances:
+    image: nicolargo/glances:latest
+    container_name: glances
+    pid: host
+    network_mode: host
+    environment:
+      - TZ=Asia/Shanghai
+      - GLANCES_OPT=-w -B 172.22.0.1   # 只綁 docker 網關，區網不可直達，走 nginx /glances
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/proc:ro
+      - /sys:/sys:ro
+      - /etc/os-release:/etc/os-release:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    ports:
+      - "80:80"     # 统一入口 http://192.168.1.61
+      - "443:443"
+    networks:
+      - default
+      - mcsmanager
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/bg:/etc/nginx/bg:ro
+      - ./nginx/live:/etc/nginx/live:ro
+      - ./nginx/panel:/etc/nginx/panel:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.5"
+
+  pixiv-bg:
+    image: python:3.12-alpine
+    container_name: pixiv-bg
+    volumes:
+      - ./pixiv-bg:/app:ro
+      - ./nginx/bg:/bg:rw
+    environment:
+      - TZ=Asia/Shanghai
+      - BG_DIR=/bg
+      - REFRESH_HOURS=6
+      - ROTATE_SECONDS=45
+      - KEEP=6
+      - MODE=weekly
+      - CONTENT=illust
+    command: ["sh", "-c", "python -u /app/pixivbg.py"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  librespeed:
+    image: ghcr.io/librespeed/speedtest:latest
+    container_name: librespeed
+    environment:
+      - TZ=Asia/Shanghai
+      - MODE=standalone
+      - TELEMETRY=false
+      - USE_NEW_DESIGN=true
+    volumes:
+      - ./librespeed/servers.json:/servers.json:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "1.5"
+
+networks:
+  mcsmanager:
+    name: mcsmanager_default
+    external: true

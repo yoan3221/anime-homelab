@@ -1,0 +1,302 @@
+server:
+  port: 8080
+  proxied: true
+  assets-path: /app/assets
+
+theme:
+  background-color: 240 21 15
+  primary-color: 217 92 83
+  positive-color: 115 54 76
+  negative-color: 347 70 65
+  contrast-multiplier: 1.2
+  custom-css-file: /assets/user.css
+
+pages:
+  - name: 服务
+    hide-desktop-navigation: true
+    columns:
+      # ── 左欄：時間 / 網速 / 下載 ────────────────────
+      - size: small
+        widgets:
+          - type: clock
+            hour-format: 24h
+            hide-header: true
+
+          - type: custom-api
+            title: 网速
+            cache: 5s
+            url: http://qbittorrent:8080/api/v2/transfer/info
+            headers:
+              Authorization: Bearer ${QBT_TOKEN}
+            template: |
+              {{ $dl := .JSON.Float "dl_info_speed" }}
+              {{ $up := .JSON.Float "up_info_speed" }}
+              {{ $dlTotal := .JSON.Float "dl_info_data" }}
+              {{ $upTotal := .JSON.Float "up_info_data" }}
+              <div class="speed-grid">
+                <div class="speed-item">
+                  <div class="speed-head"><span class="speed-arrow speed-down">↓</span>下載</div>
+                  <div class="speed-value">{{ if gt $dl 1048576.0 }}{{ div $dl 1048576 | printf "%.1f" }}<span class="speed-unit">MB/s</span>{{ else }}{{ div $dl 1024 | printf "%.0f" }}<span class="speed-unit">KB/s</span>{{ end }}</div>
+                  <div class="speed-sub">累計 {{ if gt $dlTotal 1073741824.0 }}{{ div $dlTotal 1073741824 | printf "%.1f" }} GB{{ else }}{{ div $dlTotal 1048576 | printf "%.0f" }} MB{{ end }}</div>
+                </div>
+                <div class="speed-item">
+                  <div class="speed-head"><span class="speed-arrow speed-up">↑</span>上傳</div>
+                  <div class="speed-value">{{ if gt $up 1048576.0 }}{{ div $up 1048576 | printf "%.1f" }}<span class="speed-unit">MB/s</span>{{ else }}{{ div $up 1024 | printf "%.0f" }}<span class="speed-unit">KB/s</span>{{ end }}</div>
+                  <div class="speed-sub">累計 {{ if gt $upTotal 1073741824.0 }}{{ div $upTotal 1073741824 | printf "%.1f" }} GB{{ else }}{{ div $upTotal 1048576 | printf "%.0f" }} MB{{ end }}</div>
+                </div>
+              </div>
+
+          - type: custom-api
+            title: 下载中心
+            cache: 5s
+            url: http://qbittorrent:8080/api/v2/transfer/info
+            headers:
+              Authorization: Bearer ${QBT_TOKEN}
+            subrequests:
+              torrents:
+                url: http://qbittorrent:8080/api/v2/torrents/info
+                headers:
+                  Authorization: Bearer ${QBT_TOKEN}
+                parameters:
+                  sort: dlspeed
+                  reverse: "true"
+                  limit: "5"
+            template: |
+              {{ $torrents := ($.Subrequest "torrents").JSON.Array "" }}
+              <ul class="list list-gap-10">
+                {{ range $torrents }}
+                  {{ $state := .String "state" }}
+                  {{ if or (eq $state "downloading") (eq $state "forcedDL") (eq $state "stalledDL") (eq $state "queuedDL") (eq $state "metaDL") (eq $state "checkingDL") (eq $state "allocating") (eq $state "moving") }}
+                    {{ $label := "下載中" }}
+                    {{ if eq $state "stalledDL" }}{{ $label = "等待中" }}{{ else if eq $state "metaDL" }}{{ $label = "取得資訊" }}{{ else if eq $state "checkingDL" }}{{ $label = "校驗中" }}{{ else if eq $state "queuedDL" }}{{ $label = "排隊中" }}{{ else if eq $state "forcedDL" }}{{ $label = "強制下載" }}{{ else if eq $state "moving" }}{{ $label = "移動中" }}{{ end }}
+                    {{ $speed := .Float "dlspeed" }}
+                    {{ $eta := .Float "eta" }}
+                    <li class="list-item">
+                      <div class="flex justify-between items-end gap-10">
+                        <span class="size-h5 text-truncate">{{ .String "name" }}</span>
+                        <span class="dl-state">{{ $label }}</span>
+                      </div>
+                      <div class="flex justify-between margin-top-3 text-very-compact">
+                        <span class="color-highlight">{{ if gt $speed 1048576.0 }}{{ div $speed 1048576 | printf "%.1f" }} MB/s{{ else }}{{ div $speed 1024 | printf "%.0f" }} KB/s{{ end }}</span>
+                        <span>{{ if gt $speed 0.0 }}{{ if gt $eta 3600.0 }}{{ div $eta 3600 | printf "%.0f" }} 小時{{ else if gt $eta 60.0 }}{{ div $eta 60 | printf "%.0f" }} 分鐘{{ else }}{{ printf "%.0f" $eta }} 秒{{ end }}後完成{{ else }}—{{ end }}</span>
+                      </div>
+                    </li>
+                  {{ end }}
+                {{ end }}
+              </ul>
+
+          - type: custom-api
+            title: 主機狀態
+            cache: 30s
+            template: |
+              {{ $base := "http://172.22.0.1:61208/api/4" }}
+              {{ $cpu := newRequest (concat $base "/cpu") | getResponse }}
+              {{ $mem := newRequest (concat $base "/mem") | getResponse }}
+              {{ $fs := newRequest (concat $base "/fs") | getResponse }}
+              {{ $sensors := newRequest (concat $base "/sensors") | getResponse }}
+              {{ $uptime := newRequest (concat $base "/uptime") | getResponse }}
+              {{ $cpuPct := $cpu.JSON.Float "total" }}
+              {{ $memPct := $mem.JSON.Float "percent" }}
+              {{ $memUsed := div ($mem.JSON.Float "used") 1073741824 }}
+              {{ $memTotal := div ($mem.JSON.Float "total") 1073741824 }}
+              {{ $diskPct := 0.0 }}{{ $diskUsed := 0.0 }}{{ $diskTotal := 0.0 }}{{ $diskSize := 0.0 }}
+              {{ range $fs.JSON.Array "" }}
+                {{ if gt (.Float "size") $diskSize }}
+                  {{ $diskSize = .Float "size" }}
+                  {{ $diskPct = .Float "percent" }}
+                  {{ $diskUsed = div (.Float "used") 1073741824 }}
+                  {{ $diskTotal = div (.Float "size") 1073741824 }}
+                {{ end }}
+              {{ end }}
+              {{ $temp := 0 }}
+              {{ range $sensors.JSON.Array "" }}
+                {{ if and (eq (.String "type") "temperature_core") (eq (.String "unit") "C") }}
+                  {{ $v := .Float "value" | toInt }}
+                  {{ if gt $v $temp }}{{ $temp = $v }}{{ end }}
+                {{ end }}
+              {{ end }}
+              <div class="hs-grid">
+                <div class="hs-item">
+                  <div class="hs-label">CPU</div>
+                  <div class="hs-value">{{ printf "%.0f" $cpuPct }}<span class="hs-unit">%</span></div>
+                  <div class="hs-bar"><div class="hs-fill" style="width:{{ printf "%.0f" $cpuPct }}%"></div></div>
+                </div>
+                <div class="hs-item">
+                  <div class="hs-label">記憶體</div>
+                  <div class="hs-value">{{ printf "%.0f" $memPct }}<span class="hs-unit">%</span></div>
+                  <div class="hs-bar"><div class="hs-fill" style="width:{{ printf "%.0f" $memPct }}%"></div></div>
+                  <div class="hs-sub">{{ printf "%.1f" $memUsed }} / {{ printf "%.0f" $memTotal }} GB</div>
+                </div>
+                <div class="hs-item">
+                  <div class="hs-label">溫度</div>
+                  <div class="hs-value">{{ $temp }}<span class="hs-unit">°C</span></div>
+                </div>
+                <div class="hs-item">
+                  <div class="hs-label">磁碟</div>
+                  <div class="hs-value">{{ printf "%.0f" $diskPct }}<span class="hs-unit">%</span></div>
+                  <div class="hs-bar"><div class="hs-fill" style="width:{{ printf "%.0f" $diskPct }}%"></div></div>
+                  <div class="hs-sub">{{ printf "%.0f" $diskUsed }} / {{ printf "%.0f" $diskTotal }} GB</div>
+                </div>
+              </div>
+              <div class="hs-uptime">已運行 {{ $uptime.JSON.String "" | replaceAll " days" " 天" | replaceAll " day" " 天" }}</div>
+
+      # ── 中欄：天氣 / 繼續觀看 ───────────────────────
+      - size: full
+        widgets:
+          - type: custom-api
+            title: 天氣
+            cache: 10m
+            url: "https://api.open-meteo.com/v1/forecast?latitude=25.033&longitude=121.5654&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weather_code&timezone=Asia%2FTaipei&forecast_hours=12"
+            template: |
+              {{ $c := .JSON.Int "current.weather_code" }}
+              {{ $icon := "🌡️" }}{{ $txt := "—" }}
+              {{ if eq $c 0 }}{{ $icon = "☀️" }}{{ $txt = "晴朗" }}{{ else if eq $c 1 }}{{ $icon = "🌤️" }}{{ $txt = "晴時多雲" }}{{ else if eq $c 2 }}{{ $icon = "⛅" }}{{ $txt = "多雲" }}{{ else if eq $c 3 }}{{ $icon = "☁️" }}{{ $txt = "陰天" }}{{ else if le $c 48 }}{{ $icon = "🌫️" }}{{ $txt = "有霧" }}{{ else if le $c 57 }}{{ $icon = "🌦️" }}{{ $txt = "毛毛雨" }}{{ else if le $c 67 }}{{ $icon = "🌧️" }}{{ $txt = "下雨" }}{{ else if le $c 77 }}{{ $icon = "❄️" }}{{ $txt = "下雪" }}{{ else if le $c 82 }}{{ $icon = "🌦️" }}{{ $txt = "陣雨" }}{{ else if le $c 86 }}{{ $icon = "🌨️" }}{{ $txt = "陣雪" }}{{ else if ge $c 95 }}{{ $icon = "⛈️" }}{{ $txt = "雷雨" }}{{ end }}
+              <div class="wx-hero">
+                <div class="wx-loc">台北市</div>
+                <div class="wx-temp">{{ printf "%.0f" (.JSON.Float "current.temperature_2m") }}°</div>
+                <div class="wx-cond">{{ $icon }} {{ $txt }} · 體感 {{ printf "%.0f" (.JSON.Float "current.apparent_temperature") }}°</div>
+                <div class="wx-hl">H: {{ printf "%.0f" (.JSON.Float "daily.temperature_2m_max.0") }}° · L: {{ printf "%.0f" (.JSON.Float "daily.temperature_2m_min.0") }}°</div>
+              </div>
+              <div class="wx-hours">
+                {{ $hc0 := .JSON.Int "hourly.weather_code.0" }}{{ $hi0 := "☀️" }}{{ if eq $hc0 1 }}{{ $hi0 = "🌤️" }}{{ else if eq $hc0 2 }}{{ $hi0 = "⛅" }}{{ else if eq $hc0 3 }}{{ $hi0 = "☁️" }}{{ else if le $hc0 48 }}{{ $hi0 = "🌫️" }}{{ else if le $hc0 67 }}{{ $hi0 = "🌧️" }}{{ else if le $hc0 77 }}{{ $hi0 = "❄️" }}{{ else if le $hc0 82 }}{{ $hi0 = "🌦️" }}{{ else if le $hc0 86 }}{{ $hi0 = "🌨️" }}{{ else if ge $hc0 95 }}{{ $hi0 = "⛈️" }}{{ end }}
+                <div class="wx-hour"><div class="wx-h-time">現在</div><div class="wx-h-icon">{{ $hi0 }}</div><div class="wx-h-temp">{{ printf "%.0f" (.JSON.Float "hourly.temperature_2m.0") }}°</div></div>
+                {{ $hc2 := .JSON.Int "hourly.weather_code.2" }}{{ $hi2 := "☀️" }}{{ if eq $hc2 1 }}{{ $hi2 = "🌤️" }}{{ else if eq $hc2 2 }}{{ $hi2 = "⛅" }}{{ else if eq $hc2 3 }}{{ $hi2 = "☁️" }}{{ else if le $hc2 48 }}{{ $hi2 = "🌫️" }}{{ else if le $hc2 67 }}{{ $hi2 = "🌧️" }}{{ else if le $hc2 77 }}{{ $hi2 = "❄️" }}{{ else if le $hc2 82 }}{{ $hi2 = "🌦️" }}{{ else if le $hc2 86 }}{{ $hi2 = "🌨️" }}{{ else if ge $hc2 95 }}{{ $hi2 = "⛈️" }}{{ end }}
+                <div class="wx-hour"><div class="wx-h-time">{{ findMatch "[0-9]{2}:[0-9]{2}" (.JSON.String "hourly.time.2") }}</div><div class="wx-h-icon">{{ $hi2 }}</div><div class="wx-h-temp">{{ printf "%.0f" (.JSON.Float "hourly.temperature_2m.2") }}°</div></div>
+                {{ $hc4 := .JSON.Int "hourly.weather_code.4" }}{{ $hi4 := "☀️" }}{{ if eq $hc4 1 }}{{ $hi4 = "🌤️" }}{{ else if eq $hc4 2 }}{{ $hi4 = "⛅" }}{{ else if eq $hc4 3 }}{{ $hi4 = "☁️" }}{{ else if le $hc4 48 }}{{ $hi4 = "🌫️" }}{{ else if le $hc4 67 }}{{ $hi4 = "🌧️" }}{{ else if le $hc4 77 }}{{ $hi4 = "❄️" }}{{ else if le $hc4 82 }}{{ $hi4 = "🌦️" }}{{ else if le $hc4 86 }}{{ $hi4 = "🌨️" }}{{ else if ge $hc4 95 }}{{ $hi4 = "⛈️" }}{{ end }}
+                <div class="wx-hour"><div class="wx-h-time">{{ findMatch "[0-9]{2}:[0-9]{2}" (.JSON.String "hourly.time.4") }}</div><div class="wx-h-icon">{{ $hi4 }}</div><div class="wx-h-temp">{{ printf "%.0f" (.JSON.Float "hourly.temperature_2m.4") }}°</div></div>
+                {{ $hc6 := .JSON.Int "hourly.weather_code.6" }}{{ $hi6 := "☀️" }}{{ if eq $hc6 1 }}{{ $hi6 = "🌤️" }}{{ else if eq $hc6 2 }}{{ $hi6 = "⛅" }}{{ else if eq $hc6 3 }}{{ $hi6 = "☁️" }}{{ else if le $hc6 48 }}{{ $hi6 = "🌫️" }}{{ else if le $hc6 67 }}{{ $hi6 = "🌧️" }}{{ else if le $hc6 77 }}{{ $hi6 = "❄️" }}{{ else if le $hc6 82 }}{{ $hi6 = "🌦️" }}{{ else if le $hc6 86 }}{{ $hi6 = "🌨️" }}{{ else if ge $hc6 95 }}{{ $hi6 = "⛈️" }}{{ end }}
+                <div class="wx-hour"><div class="wx-h-time">{{ findMatch "[0-9]{2}:[0-9]{2}" (.JSON.String "hourly.time.6") }}</div><div class="wx-h-icon">{{ $hi6 }}</div><div class="wx-h-temp">{{ printf "%.0f" (.JSON.Float "hourly.temperature_2m.6") }}°</div></div>
+                {{ $hc8 := .JSON.Int "hourly.weather_code.8" }}{{ $hi8 := "☀️" }}{{ if eq $hc8 1 }}{{ $hi8 = "🌤️" }}{{ else if eq $hc8 2 }}{{ $hi8 = "⛅" }}{{ else if eq $hc8 3 }}{{ $hi8 = "☁️" }}{{ else if le $hc8 48 }}{{ $hi8 = "🌫️" }}{{ else if le $hc8 67 }}{{ $hi8 = "🌧️" }}{{ else if le $hc8 77 }}{{ $hi8 = "❄️" }}{{ else if le $hc8 82 }}{{ $hi8 = "🌦️" }}{{ else if le $hc8 86 }}{{ $hi8 = "🌨️" }}{{ else if ge $hc8 95 }}{{ $hi8 = "⛈️" }}{{ end }}
+                <div class="wx-hour"><div class="wx-h-time">{{ findMatch "[0-9]{2}:[0-9]{2}" (.JSON.String "hourly.time.8") }}</div><div class="wx-h-icon">{{ $hi8 }}</div><div class="wx-h-temp">{{ printf "%.0f" (.JSON.Float "hourly.temperature_2m.8") }}°</div></div>
+                {{ $hc10 := .JSON.Int "hourly.weather_code.10" }}{{ $hi10 := "☀️" }}{{ if eq $hc10 1 }}{{ $hi10 = "🌤️" }}{{ else if eq $hc10 2 }}{{ $hi10 = "⛅" }}{{ else if eq $hc10 3 }}{{ $hi10 = "☁️" }}{{ else if le $hc10 48 }}{{ $hi10 = "🌫️" }}{{ else if le $hc10 67 }}{{ $hi10 = "🌧️" }}{{ else if le $hc10 77 }}{{ $hi10 = "❄️" }}{{ else if le $hc10 82 }}{{ $hi10 = "🌦️" }}{{ else if le $hc10 86 }}{{ $hi10 = "🌨️" }}{{ else if ge $hc10 95 }}{{ $hi10 = "⛈️" }}{{ end }}
+                <div class="wx-hour"><div class="wx-h-time">{{ findMatch "[0-9]{2}:[0-9]{2}" (.JSON.String "hourly.time.10") }}</div><div class="wx-h-icon">{{ $hi10 }}</div><div class="wx-h-temp">{{ printf "%.0f" (.JSON.Float "hourly.temperature_2m.10") }}°</div></div>
+              </div>
+
+          - type: custom-api
+            title: 继续观看
+            cache: 1m
+            url: "http://jellyfin:8096/jellyfin/Users/8b27294f-ba6a-472c-ac62-dc34ecc744d1/Items/Resume?Limit=6&MediaTypes=Video&ImageTypeLimit=1&EnableImageTypes=Primary&Fields=SeriesPrimaryImageTag"
+            headers:
+              X-Emby-Token: ${JELLYFIN_API_KEY}
+            template: |
+              {{ $key := "${JELLYFIN_API_KEY}" }}
+              {{ $items := .JSON.Array "Items" }}
+              {{ if eq (len $items) 0 }}
+                <div class="jf-empty">暫無觀看記錄</div>
+              {{ else }}
+                <div class="jf-grid">
+                  {{ range $items }}
+                    {{ $imgID := .String "SeriesId" }}{{ if eq $imgID "" }}{{ $imgID = .String "Id" }}{{ end }}
+                    {{ $title := .String "SeriesName" }}{{ if eq $title "" }}{{ $title = .String "Name" }}{{ end }}
+                    {{ $pct := .Float "UserData.PlayedPercentage" }}
+                    {{ $ep := "" }}{{ if eq (.String "Type") "Episode" }}{{ $ep = printf "S%02dE%02d" (.Int "ParentIndexNumber") (.Int "IndexNumber") }}{{ end }}
+                    <a class="jf-card" href="/jellyfin/web/index.html#!/details?id={{ .String "Id" }}" target="_blank" title="{{ $title }}{{ if $ep }} · {{ $ep }}{{ end }}">
+                      <div class="jf-poster">
+                        <img loading="lazy" src="/jellyfin/Items/{{ $imgID }}/Images/Primary?api_key={{ $key }}&maxHeight=330" alt="">
+                        <div class="jf-bar"><div class="jf-bar-fill" style="width:{{ printf "%.0f" $pct }}%"></div></div>
+                      </div>
+                      <div class="jf-name text-truncate">{{ $title }}</div>
+                      {{ if $ep }}<div class="jf-sub">{{ $ep }}</div>{{ end }}
+                    </a>
+                  {{ end }}
+                </div>
+              {{ end }}
+
+          - type: custom-api
+            title: 媒體庫
+            cache: 5m
+            url: "http://jellyfin:8096/jellyfin/Items/Counts?api_key=${JELLYFIN_API_KEY}"
+            subrequests:
+              sessions:
+                url: "http://jellyfin:8096/jellyfin/Sessions?api_key=${JELLYFIN_API_KEY}"
+            template: |
+              {{ $active := 0.0 }}
+              {{ range (.Subrequest "sessions").JSON.Array "" }}
+                {{ if .Exists "NowPlayingItem" }}{{ $active = add $active 1 }}{{ end }}
+              {{ end }}
+              <div class="lib-grid">
+                <div class="lib-item">
+                  <div class="lib-value {{ if gt $active 0.0 }}color-positive{{ else }}color-highlight{{ end }}">{{ printf "%.0f" $active }}</div>
+                  <div class="lib-label">播放中</div>
+                </div>
+                <div class="lib-item">
+                  <div class="lib-value color-highlight">{{ .JSON.Int "SeriesCount" }}</div>
+                  <div class="lib-label">影集</div>
+                </div>
+                <div class="lib-item">
+                  <div class="lib-value color-highlight">{{ .JSON.Int "EpisodeCount" }}</div>
+                  <div class="lib-label">集數</div>
+                </div>
+                <div class="lib-item">
+                  <div class="lib-value color-highlight">{{ .JSON.Int "MovieCount" }}</div>
+                  <div class="lib-label">電影</div>
+                </div>
+              </div>
+
+      # ── 右欄：服務狀態 / 新聞 ──────────────────────
+      - size: small
+        widgets:
+          - type: monitor
+            title: 服务状态
+            cache: 1m
+            style: compact
+            sites:
+              - title: Jellyfin
+                url: /jellyfin
+                check-url: http://jellyfin:8096/jellyfin/
+                icon: si:jellyfin
+                alt-status-codes: [301, 302, 401, 403]
+              - title: qBittorrent
+                url: /qb
+                check-url: http://qbittorrent:8080/
+                icon: si:qbittorrent
+                alt-status-codes: [401, 403]
+              - title: ani-rss
+                url: /ani
+                check-url: http://ani-rss:7789/
+                icon: si:anilist
+              - title: MCSManager
+                url: /mcsm
+                check-url: http://nginx/mcsm/
+                icon: di:minecraft
+                alt-status-codes: [301, 302, 401, 403]
+              - title: 網頁測速
+                url: /speedtest/
+                check-url: http://librespeed:8080/
+                icon: di:librespeed
+
+          - type: custom-api
+            title: Minecraft 伺服器
+            cache: 5s
+            url: "http://nginx/mcsm/api/instance?apikey=${MCSM_API_KEY}&daemonId=29a13f01b790422ba41a8cbcff80db2a&uuid=5874047c48624f89ba504b58c9a108b1"
+            template: |
+              {{ $status := .JSON.Int "data.status" }}
+              {{ $name := .JSON.String "data.config.nickname" }}
+              {{ $players := .JSON.Int "data.info.currentPlayers" }}
+              {{ $maxPlayers := .JSON.Int "data.info.maxPlayers" }}
+              {{ $lastStr := printf "%d" (toInt (div (toFloat (.JSON.Int "data.config.lastDatetime")) 1000)) }}
+              <div class="mc-head">
+                <span class="mc-dot {{ if eq $status 3 }}mc-on{{ else }}mc-off{{ end }}"></span>
+                <span class="mc-state {{ if eq $status 3 }}mc-state-on{{ else }}mc-state-off{{ end }}">{{ if eq $status 3 }}運行中{{ else if eq $status 2 }}啟動中{{ else if eq $status 1 }}停止中{{ else if eq $status -1 }}忙碌{{ else }}已停止{{ end }}</span>
+                <span class="mc-name text-truncate">{{ $name }}</span>
+              </div>
+              <div class="mc-metrics">
+                <div class="mc-metric">
+                  <div class="mc-label">在線玩家</div>
+                  <div class="mc-value" data-popover-type="text" data-popover-text="版本 {{ .JSON.String "data.info.version" }} · 延遲 {{ .JSON.Int "data.info.latency" }}ms">{{ $players }}<span class="mc-unit"> / {{ $maxPlayers }}</span></div>
+                </div>
+                {{ if eq $status 3 }}
+                <div class="mc-metric">
+                  <div class="mc-label">運行時長</div>
+                  <div class="mc-value"><span {{ parseRelativeTime "unix" $lastStr }}></span></div>
+                </div>
+                {{ end }}
+              </div>
+
+          - type: rss
+            title: Google News
+            limit: 8
+            collapse-after: 5
+            cache: 15m
+            feeds:
+              - url: https://news.google.com/rss?hl=zh-TW&gl=TW&ceid=TW:zh-Hant

@@ -1,0 +1,19 @@
+# ── 資料 / 執行期狀態（不進版控）──
+downloads/
+jellyfin/
+qbittorrent/
+ani-rss/
+i2pd/
+glances/
+nginx/bg/
+caddy/
+homepage/
+
+# ── 機密 ──
+.env
+credentials-*.txt
+*.bak-*
+
+# ── 雜項 ──
+*.log
+.DS_Store
